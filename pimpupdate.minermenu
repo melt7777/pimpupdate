@@ -1,0 +1,559 @@
+#!/bin/bash
+#This file is an INCLUDE to pimpupdate. not to be run on its own under normal circumstances.
+MCFLAGS="-O2 -w"
+#-march=native"
+#Variables for the condensed version.
+#MINERNAME="Name of the miner: IE Sgminer or SPH-Sgminer"
+#MINERVER="This gets set in the script"
+#MINERDIRNAME="the git name of the miner build dir"
+#MINERDIRNAME2="The directory the miner gets installed into"
+#MINEREXECNAME="sgminer yacminer bfgminer or cgminer"
+#MINERUSELSOC="can this miner use LSOC/Arebyp kernels?"
+#MINERPRECONFIGURECOMMAND="Autogen.sh or autoreconf -i or echo for miners that use autogen.sh for the main configure script/neither."
+#MINERCONFIGFLAGS="Configure flags for cgminer / BFGminer"
+#MINERCONFIGCOMMAND="configure"
+#MINERGETMETHOD="wget or git?"
+#MINERGETMETHODFLAGS ="clone"
+#MINERGITURL="git url for miner"
+function buildminer.checkadl() {
+	if [ $MINERDIRNAME != "bfgminer" ];
+	then
+	cp /opt/ADL-SDK/adl_defines.h /root/minerbuild/$MINERDIRNAME/ADL_SDK/
+	cp /opt/ADL-SDK/adl_sdk.h /root/minerbuild/$MINERDIRNAME/ADL_SDK/
+	cp /opt/ADL-SDK/adl_structures.h /root/minerbuild/$MINERDIRNAME/ADL_SDK/
+	else
+	echo "BFGMiner doesn't need the ADL sdk, not copying."
+fi 
+}
+function buildminer.checklsoc() {
+if [ '$MINERUSELSOC' = "yes" ];
+	then
+	if [ -e "/root/minerbuild/$MINERDIRNAME.bak/kernel/lsoc.cl" ];
+				then
+				echo "The script detected you had LSOC.cl kernel installed before building this new miner"
+				echo "So we're gonna drop it back in for you ;)"
+				cp /root/minerbuild/$MINERDIRNAME.bak/kernel/lsoc.cl $MINERDIRNAME2/kernel/lsoc.cl
+				else
+				echo "..."
+			fi
+				if [ -e "/root/minerbuild/$MINERDIRNAME.bak/kernel/lsoc3.cl" ];
+				then 
+				echo "The script detected you had LSOC.cl kernel installed before building this new miner"
+				echo "So we're gonna drop it back in for you ;)"
+				cp /root/minerbuild/$MINERDIRNAME.bak/kernel/lsoc3.cl $MINERDIRNAME2/kernel/lsoc3.cl
+				else
+				echo "..."
+				fi
+	else
+	    echo "This isn't sgminer 4.x, not checking if lsoc kernels need to be put back in place..."
+fi
+}
+function buildminer.checkarebyp() {
+if [ '$MINERUSELSOC' = "yes" ];
+	then
+	if [ -e "/root/minerbuild/$MINERDIRNAME.bak/kernel/arebyp.cl" ];
+				then
+				echo "The script detected you had arebyp.cl kernel installed before building this new miner"
+				echo "So we're gonna drop it back in for you ;)"
+				cp /root/minerbuild/$MINERDIRNAME.bak/kernel/arebyp.cl $MINERDIRNAME2/kernel/arebyp.cl
+				else
+				echo "..."
+			fi
+	else
+	    echo "This isn't sgminer 4.x, not checking if arebyp kernels need to be put back in place..."
+fi
+}
+function buildminer.4 {
+	if [ -e /root/minerbuild/$MINERDIRNAME ];
+	then
+	local BUILDDIR="/root/minerbuild/$MINERDIRNAME"
+	MINERVER=`cd $BUILDDIR && git describe --always`
+	echo "Preparing to build $MINERNAME V $MINERVER"
+	echo "Making clean..."
+	make clean &> /dev/null
+	cd /root/minerbuild/$MINERDIRNAME
+	buildminer.checkadl
+	if [ "$MINERDIRNAME2" = "/opt/sgminer" ]; then
+		echo "Checking out jansson library"
+		git submodule init 
+		git submodule update
+	fi
+	if [ "$MINERDIRNAME2" = "/opt/sgminer5-develop" ]; then
+		echo "Checking out jansson library"
+		git submodule init 
+		git submodule update
+	fi
+	if [ "$MINERDIRNAME2" = "/opt/sgminer-zr5" ]; then
+		echo "Checking out jansson library"
+		git submodule init 
+		git submodule update
+	fi
+	if [ "$MINEREXECNAME" = "sgminer" ]; then
+		echo "Running autoreconf -ivf"
+		autoreconf -ivf
+	fi
+	if  [ "$MINEREXECNAME" = "bfgminer" ]; then
+		echo "Running autogen.sh"
+		./autogen.sh
+	fi
+	CFLAGS="$MCFLAGS" ./$MINERCONFIGCOMMAND $MINERCONFIGFLAGS
+	sleep 3
+	make
+	if [ -x /root/minerbuild/$MINERDIRNAME/$MINEREXECNAME ];
+		then 
+		echo "Compile completed successfully."
+		f.minestop
+		echo "Removing old minerbuild/$MINERDIRNAME.bak directory..."
+		rm -rf /root/minerbuild/$MINERDIRNAME.bak
+		echo "Backing up old $MINERDIRNAME2 to /root/minerbuild/$MINERDIRNAME.bak..."
+		mv $MINERDIRNAME2 /root/minerbuild/$MINERDIRNAME.bak
+		echo "Moving new $MINERNAME into place..."
+		cp -R /root/minerbuild/$MINERDIRNAME $MINERDIRNAME2
+		echo "Build of $MINERNAME $MINERVER done."
+		buildminer.checklsoc
+		timeout 10 /opt/ifmi/mcontrol stop
+		f.minestart
+		else
+		echo "make did not complete successfully, failing not so gracefully!"
+		echo "BOOM!"
+		exit 1
+	fi 
+	else
+	echo "Can't find $MINERDIRNAME build directory, failing not so gracefully."
+	echo "BOOM!"
+	exit 1
+	fi 
+}
+function buildminer.3() {
+		`$MINERGETMETHOD $MINERGETFLAGS $MINERGETURL /root/minerbuild/$MINERDIRNAME`
+		buildminer.4
+}
+function buildminer.2() {
+	$THELINE
+	echo "Preparing work directory.... (/root/minerbuild)"
+	if [ ! -e /root/minerbuild ];
+	   	then
+	   		echo "/root/minerbuild doesn't exist..creating.." 
+			mkdir /root/minerbuild
+		else
+	    	echo "Found build directory, moving along..."
+	    	$THELINE
+	fi
+	cd /root/minerbuild
+	if [ -e /root/minerbuild/$MINERDIRNAME ];
+		then
+		echo "You already have a build directory for $MINERNAME "
+		echo "1. Pull (Update your existing build directory)"
+		echo "2. Clone (Remove existing build directory and clone fresh)"
+		echo -n "Would you like to pull it up to date or clone a fresh version? (1/2): "
+		read PULLORCLONESG
+		if [ $PULLORCLONESG = 1 ];
+			then 
+			cd $MINERDIRNAME
+			git pull
+			buildminer.4
+		elif [ $PULLORCLONESG = 2 ];
+			then
+			rm -rf $MINERDIRNAME
+			buildminer.3
+		else 
+		   echo "Invalid selection, returning to miner build menu"
+		   f.minermenu
+		fi
+		else 
+		buildminer.3
+	fi
+}
+function minermenu.config() {
+local PMSELECT_1="1. Cflags"
+local PMSELECT_2="2. -O3"
+local PMSELECT_3="3. -march=native"
+local PMSELECT_4="4. Install updated seedmanager profiles"
+local PMSELECT_5="5. Update miners using minermenu"
+local PMSELECT_6="6. Install LSOC Kernel for R7850 /R9 270"
+echo "What would you like to do?"
+$THELINE
+echo "Choose a build source"
+echo $PMSELECT_1
+echo "Save git trees for miners built?"
+echo $PMSELECT_2
+$THELINE
+echo "Git build options" 
+echo $PMSELECT_3
+echo $PMSELECT_4
+echo $PMSELECT_5
+echo $PMSELECT_6
+echo "or q to exit"
+echo -n "Which one? 1-6: "
+	read PMSELECTNUM
+	if [ $PMSELECTNUM == q ];
+		then exit 0
+	else
+	case $PMSELECTNUM in
+		1 )
+		doinstall.version
+		;;
+		2 )
+		doinstall.pmprofiles
+		;;
+		3 )
+		doinstall.seedmanager
+		;;
+		4 )
+		doinstall.smprofiles
+		;;
+		5 ) 
+		clear
+		f.minermenu
+		;;
+		* )
+		echo "Invalid Selection,"
+		echo "Returning to menu"
+		pimpmenu
+		;;
+	esac	
+fi
+}
+function dobuild.sgminer() {
+	MINERNAME="Sgminer"
+	MINERDIRNAME="sgminer"
+	MINERDIRNAME2="/opt/sgminer"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/sgminer-dev/sgminer.git"
+	buildminer.2
+}
+function dobuild.sgminerzr5() {
+	MINERNAME="Sgminer-zr5"
+	MINERDIRNAME="sgminer-zr5"
+	MINERDIRNAME2="/opt/sgminer-zr5"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/ziftrcoin/sgminer.git"
+	buildminer.2
+}
+function dobuild.sgminerzr5wolf() {
+	MINERNAME="Sgminer-zr5"
+	MINERDIRNAME="sgminer-zr5"
+	MINERDIRNAME2="/opt/sgminer-zr5"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone -b wolf"
+	MINERGETURL="https://github.com/ziftrcoin/sgminer.git"
+	dobuild.sgminerzr5.updatewolfbins
+	buildminer.2
+}
+function dobuild.sgminerzr5.updatewolfbins() {
+	echo "Downloading/Installing Wolf ZR5 Bins to /opt/ifmi ...."
+	git clone -b pimp https://www.github.com/Ziftrcoin/sgminer /tmp/zr5bins/
+	cp /tmp/zr5bins/*.bin /opt/ifmi/
+}
+function dobuild.sgminer5badman74() {
+	MINERNAME="Sgminer"
+	MINERDIRNAME="sgminer5-badman74"
+	MINERDIRNAME2="/opt/sgminer5-develop"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone -b master"
+	MINERGETURL="https://github.com/badman74/sgminer.git"
+	buildminer.2
+}
+function dobuild.sgminer5badman74lyra2re() {
+	MINERNAME="Sgminer"
+	MINERDIRNAME="sgminer5-badman74"
+	MINERDIRNAME2="/opt/sgminer5-develop"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone -b lyra2re"
+	MINERGETURL="https://github.com/badman74/sgminer.git"
+	buildminer.2
+}
+function dobuild.sgminerspreadcoin() {
+	MINERNAME="Sgminer"
+	MINERDIRNAME="spreadcoinx11-sgminer"
+	MINERDIRNAME2="/opt/sgminer-spreadcoin"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/spreadcoin-project/spreadcoinx11-sgminer.git"
+	if [[ ! -e /opt/ifmi/cgminer.spreadcoin.conf ]]; then
+		echo "Spreadcoin config file not present, downloading example config..."
+		download /tmp/cgminer.spreadcoin.conf.tbz2 http://files.getpimp.org/pimpupdate/1.6-spreadcoin/cgminer.spreadcoin.conf.tbz2 
+	    echo "Unpacking spreadcoin miner config example to /opt/ifmi/cgminer.spreadcoin.conf"
+	    tar jxvf /tmp/cgminer.spreadcoin.conf.tbz2 -C /opt/ifmi/ > /tmp/pmprofile.log
+	    echo "Done, preparing to build the miner...."
+	    chown -R root.root /opt/ifmi/cgminer.spreadcoin.conf
+	 	else 
+	    echo "Cgminer.spreadcoin.conf found, not downloading example config file."
+	fi 
+	buildminer.2
+}
+function dobuild.sgminerdevelop() {
+	MINERNAME="Sgminer"
+	MINERDIRNAME="sgminer5-develop"
+	MINERDIRNAME2="/opt/sgminer5-develop"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone -b develop"
+	MINERGETURL="https://github.com/sgminer-dev/sgminer.git"
+	buildminer.2
+}
+function dobuild.sgminer5() {
+	MINERNAME="Sgminer"
+	MINERDIRNAME="sgminer5"
+	MINERDIRNAME2="/opt/sgminer5"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/sgminer-dev/sgminer.git"
+	buildminer.2
+}
+function dobuild.sphsgminer() {
+	MINERNAME="DjStone\SPH-Sgminer"
+	MINERDIRNAME="sph-sgminer"
+	MINERDIRNAME2="/opt/sph-sgminer"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/DJstone/sph-sgminer.git"
+	buildminer.2
+}
+function dobuild.cgminer_heavy() {
+	MINERNAME="reorder\cgminer_heavy"
+	MINERDIRNAME="cgminer_heavy"
+	MINERDIRNAME2="/opt/cgminer_heavy"
+	MINEREXECNAME="cgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS="--enable-heavy --enable-opencl --enable-keccak --enable-skein --enable-scrypt --enable-hefty --enable-ants1 --enable-avalon --enable-bflsc --enable-bitforce --enable-drillbit --enable-hashfast --enable-icarus --enable-avalon2 --enable-modminer"
+	MINERCONFIGCOMMAND="autogen.sh"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/reorder/cgminer_heavy"
+	buildminer.2
+}
+function doinstall.bfgminersrc() {
+	MINERNAME="BFGMiner"
+	MINERDIRNAME="bfgminer"
+	MINERDIRNAME2="/opt/bfgminer"
+	MINEREXECNAME="bfgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS="--enable-gridseed --enable-scrypt "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/luke-jr/bfgminer.git"
+	buildminer.2
+}
+function doinstall.dmaxl-cgminer() {
+	MINERNAME="DMAXL\Cgminer 4.3.0 GRIDSEED fork"
+	MINERDIRNAME="cgminer"
+	MINERDIRNAME2="/opt/cgminer-4.3.0-gridseed"
+	MINEREXECNAME="cgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS="--enable-gridseed --enable-scrypt "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/dmaxl/cgminer.git"
+	buildminer.2
+}
+function dobuild.yacminer() {
+	MINERNAME="Thirtybird\yacminer"
+	MINERDIRNAME="YACMiner"
+	MINERDIRNAME2="/opt/yacminer"
+	MINEREXECNAME="yacminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS="--enable-scrypt --enable-opencl --enable-chacha --enable-avalon --enable-bfl --enable-bitforce --enable-icarus --enable-modminer --enable-ztex"
+	MINERCONFIGCOMMAND="autogen.sh"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/Thirtybird/YACMiner.git"
+	buildminer.2
+}
+function dobuild.cgminer() {
+	MINERNAME="Cgminer-3.7.2"
+	MINERDIRNAME="cgminer"
+	MINERDIRNAME2="/opt/cgminer-3.7.2"
+	MINEREXECNAME="cgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS="--enable-opencl --enable-scrypt --enable-ants1 --enable-avalon --enable-bflsc --enable-bitforce --enable-drillbit --enable-hashfast --enable-icarus --enable-avalon2 "
+	MINERCONFIGCOMMAND="autogen.sh"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone -b 3.7"
+	MINERGETURL="https://github.com/ckolivas/cgminer"
+	buildminer.2
+}
+function dobuild.kalroth() {
+	MINERNAME="Kalroth\Cgminer-3.7.3"
+	MINERDIRNAME="cgminer-3.7.2-kalroth"
+	MINERDIRNAME2="/opt/cgminer-3.7.2-kalroth"
+	MINEREXECNAME="cgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS="--enable-opencl --enable-scrypt --enable-ants1 --enable-avalon --enable-bflsc --enable-bitforce --enable-drillbit --enable-hashfast --enable-icarus --enable-avalon2"
+	MINERCONFIGCOMMAND="autogen.sh"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/Kalroth/cgminer-3.7.2-kalroth.git"
+	buildminer.2
+}
+function dobuild.x11mod() {
+	MINERNAME="SPH-SGminer_x11mod"
+	MINERDIRNAME="sph-sgminer_x11mod"
+	MINERDIRNAME2="/opt/sph-sgminer_x11mod"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	DRIVER_VERSION=`sed -n '2,2p' /etc/version | cut -d "-" -f 3`
+	if [ "$DRIVER_VERSION" = "14.6" ]; then
+		MINERGETURL="https://github.com/djm34/sph-sgminer_x11mod.git"
+	else 
+		MINERGETURL="https://github.com/lasybear/sph-sgminer_x11mod.git"
+	fi
+	buildminer.2
+}
+function dobuild.jackpot() {
+	MINERNAME="PrettyHateMachine\jackpot-sgminer"
+	MINERDIRNAME="jackpot-sgminer"
+	MINERDIRNAME2="/opt/sgminer-jackpot"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/prettyhatemachine/jackpot-sgminer.git"
+	buildminer.2
+}
+function f.minermenu() {
+$THELINE
+echo "			Miner build menu"
+$THELINE
+local MSELECT_1="1. Update Sgminer5 (Many algorithms, main branch.)"
+local MSELECT_2="2. Update sph-sgminer (Many algos - deprecated, 13.12 only, Custom profiles only.)"
+local MSELECT_3="3. Update cgminer_heavy (Heavy, Hefty, Sha3(Keccak), Skein, Scrypt - Deprecated, 13.12 only, Custom profiles only.)"
+local MSELECT_4="4. Update yacminer (Chacha, scrypt, most likely 13.12 only, Custom profiles only.)"
+local MSELECT_5="5. Update BFGminer (ASIC, Gridseeds, scrypt)"
+local MSELECT_6="6. Update Cgminer-3.7.2 (Ckolivas) (For custom ASIC profiles.)"
+local MSELECT_7="7. Update Cgminer-3.7.2-Kalroth (13.12 driver series only.)"
+local MSELECT_8="8. Update Cgminer-4.3.0-Gridseed (ASIC/Gridseed ONLY)"
+local MSELECT_9="9. Update sgminer-jackpot (Jackpotcoin / ADV Sha3)"
+local MSELECT_10="10. Update sph-sgminer_x11mod (Opensource optimized x11 )"
+local MSELECT_11="11. Sgminer5-develop sgminer-dev/sgminer -b develop (Development branch may break stuff, updates -develop profiles.)"
+local MSELECT_12="12. Sgminer5-develop badman74/sgminer -b master (3rd party fork, may break stuff, has lyra2re support, replaces -develop profiles miner)"
+#local MSELECT_13="13. Sgminer5-develop badman74/sgminer -b lyra2re (3rd party fork, has LYRA2RE support for new vertcoin algorithm."
+local MSELECT_13="13. Sgminer-Spreadcoin for spreadcoin mining."
+local MSELECT_14="14. Sgminer5-ZR5 (Ziftrcoin) (Works on all driver versions, but slower than wolf miner below)"
+local MSELECT_15="15. Sgminer5-ZR5-Wolf (Ziftrcoin) Replaces sgminer-zr5, faster but needs 14.12 drivers for best performance."
+echo "What would you like to do?"
+echo $MSELECT_1
+echo $MSELECT_2 
+echo $MSELECT_3
+echo $MSELECT_4
+echo $MSELECT_5
+echo $MSELECT_6
+echo $MSELECT_7
+echo $MSELECT_8
+echo $MSELECT_9
+echo $MSELECT_10
+echo $MSELECT_11
+echo $MSELECT_12
+echo $MSELECT_13
+echo $MSELECT_14
+echo $MSELECT_15
+echo "or q to exit"
+echo -n "Which one? 1-15: "
+	read MINERSELECTNUM
+	if [ $MINERSELECTNUM == q ];
+		then exit 0
+	else
+	echo -n "You selected $MSELECT_$MINERSELECTNUM Correct? y/n: "
+	read MINERSELECT_CONTINUE
+	if [ $MINERSELECT_CONTINUE == y ];
+	then 
+	case $MINERSELECTNUM in
+		1 )
+		dobuild.sgminer
+		;;
+		2 )
+		dobuild.sphsgminer
+		;;
+		3 )
+		dobuild.cgminer_heavy
+		;;
+		4 )
+		dobuild.yacminer
+		;;
+		5 )
+		doinstall.bfgminersrc
+		;;
+		6 )
+		dobuild.cgminer
+		;;
+		7 )
+		dobuild.kalroth
+		;;
+		8 )
+		doinstall.dmaxl-cgminer
+		;;
+		9 )
+		dobuild.jackpot
+		;;
+		10 )
+		dobuild.x11mod
+		;;
+		11 )
+		dobuild.sgminerdevelop
+		;;
+		12 ) 
+		dobuild.sgminer5badman74
+		;;
+		13 )
+		dobuild.sgminerspreadcoin
+		;;
+		14 )
+		dobuild.sgminerzr5
+		;;
+		15 )
+		dobuild.sgminerzr5wolf
+		;;
+	  esac
+	else
+	$THELINE
+	echo "Invalid Selection,"
+	echo "Returning to menu"
+	f.minermenu
+	fi
+fi
+}

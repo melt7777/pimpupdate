@@ -1,0 +1,582 @@
+#!/bin/bash
+#pimpupdate - Created by sling00  irc.freenode.net #pimp
+#Report issues/submit fixes to: https://github.com/sling00/pimpupdate
+#No warranty whatsoever expressed or implied, if this breaks your couch in half and then launches you with an airbag, its not my fault. 
+#If you use printed copys to burn down your house, also not my fault, lose data. not my fault. lose time...not my fault. 
+#However if you like it.
+#VARIABLES DON'T TOUCH UNLESS YOU KNOW WHAT YOU ARE GOING TO BREAK!
+SCRIPT_VERSION=1.4.6
+PIMP_VERSION=`sed -n '2,2p' /etc/version`
+CURL2='/usr/bin/curl'
+PMUPDATEVERURL="http://files.getpimp.org/pimpupdate/version"
+CURLARGS="-f -s -S -k"
+PMURL="https://github.com/starlilyth/Linux-PoolManager/archive/master.zip"
+SMURL="https://github.com/starlilyth/Linux-SeedManager/archive/master.zip"
+SCRIPT_NEW_VERSION="$($CURL2 $CURLARGS $PMUPDATEVERURL)"
+THELINE='echo -====================================================================-'
+DEV=0
+UPDATESERVER="http://files.getpimp.org"
+BACKUPDIR="/root"
+DATESTAMP=$(date +"%m-%d-%Y-%H-%M-%S")
+
+#Turn on logging?
+exec > >(tee /var/log/pimpupdate.log)
+#Are we working from git? 
+if [ "$DEV" != 0 ];
+then
+	PMUPDATEVERURL="$UPDATESERVER/pimpupdate/dev-version"
+else
+	PMUPDATEVERURL="$UPDATESERVER/pimpupdate/version"
+fi
+	if [ "$DEV" != 0 ];
+	then
+		source /root/pimpupdate/pimpupdate.minermenu
+		source /root/pimpupdate/pimpupdate.menus
+		source /root/pimpupdate/pimpupdate.updates.1
+		source /root/pimpupdate/pimpupdate.updates.1.6-1.7
+	else
+		source /opt/pimp/pimpupdate.minermenu
+		source /opt/pimp/pimpupdate.menus
+		source /opt/pimp/pimpupdate.updates.1
+		source /opt/pimp/pimpupdate.updates.1.6-1.7
+fi
+
+##Colors
+#VERS=$(sed -n 3p $0 | awk '{print $2}') #Version information
+#LED=$(sed -n 5p $0 | awk '{print $3 " - " $4}') #Date of last edit to script
+STD=$(echo -e "\e[0;0;0m")              #Revert fonts to standard color/format
+RED=$(echo -e "\e[1;31m")               #Alter fonts to red bold
+REDN=$(echo -e "\e[0;31m")              #Alter fonts to red normal
+GRN=$(echo -e "\e[1;32m")               #Alter fonts to green bold
+GRNN=$(echo -e "\e[0;32m")              #Alter fonts to green normal
+BLU=$(echo -e "\e[1;36m")               #Alter fonts to blue bold
+BLUN=$(echo -e "\e[0;36m")              #Alter fonts to blue normal
+#
+
+#DOWNLOADFUNCTION
+function download() {
+local URL=$2
+local destin=$1
+local CLEANURL=`echo $URL | sed -r 's#.*\/([^/]+).*#\1#'`
+echo "Downloading $CLEANURL"
+wget -O $destin  "$URL"
+}
+#Return
+function f.return() { 
+	if [ -z $1 ]; then
+		echo "Done."
+		exit 0
+	else 
+	echo "Returning to the main menu..."
+	pimpmenu
+	fi
+}
+# Mine start function
+function f.minestart() {
+	echo "Restarting mining..... (May take 30-45 seconds!)"
+	cd /opt/ifmi/
+	timeout 45 /etc/init.d/mine start
+}
+# Mine stop function
+function f.minestop() {
+	echo "Stopping mining....."
+	timeout 10 /etc/init.d/mine stop
+}
+
+function f.pimpupdatenews() {
+	$THELINE
+	echo -e $RED"\tPiMP Updater V. $SCRIPT_VERSION Latest news:$STD"
+	$THELINE
+	echo "March. 28/2015: Added Wolf ZR5 miner and bin updater to miner menu"
+	echo "Mar. 9/2015: Added ZR5 Algorithm miner (Ziftrcoin) to minermenu."
+	echo "Jan. 15/2015: Added spreadcoin miner to minermenu."
+	echo "Dec. 16/2014: Added badman74 lyra2re branch to minerbuild menu of pimpupdate, replaces -develop profile miner, may break neoscrypt. test at your own risk."
+	echo "Nov. 24/2014: Added neoscrypt profiles.  Check the website for blog entry detailing how to add Nicehash/Westhash neoscrypt capability!"
+	echo "Pimpupdate now accepts command line options, type pimpupdate help to get a list!"
+	echo "Don't forget to visit us on IRC!"
+	echo "irc.freenode.net #PiMP"
+	sleep 3
+}
+
+#Need to define $DATESTAMP and $BACKUPDIR globally before this will work.
+function checkinstall.conffile() {
+	local FILE1=$1
+	local FILE2=$2
+    local FILE3=$(basename "$FILE1")
+	local URL=$3
+	local CLEANURL=`echo $URL | sed -r 's#.*\/([^/]+).*#\1#'`
+	local DESTIN=/tmp/$CLEANURL
+	local FILEPATH=${FILE1%/*}
+	if [ -f $FILE1 ]; then #IF1
+		echo "File $FILE1 already exists, would you like to overwrite it with the PiMP Default for $FILE3 or keep existing?"
+		echo "Y to overwrite, N to keep existing. (y/n):"
+		read OVERWRITE
+		if [ $OVERWRITE = y ]; then #IF2
+			echo "Backing up $FILE3 to $BACKUPDIR"
+			mv $FILE1 $BACKUPDIR/$FILE2.$DATESTAMP
+			echo "Downloading config file $FILE3 from PiMP Update server..."
+			download $DESTIN $URL
+			echo "Download completed, extracting..."
+			tar xvjpf $DESTIN -C $FILEPATH/
+			echo "Done, Continuing installation..."
+		else #Else2
+			echo "Keeping existing $FILE1"
+			echo "Continuing installation..."
+		fi #FI2
+	else #Else1
+		echo "Downloading config file $FILE3 from PiMP Update server..."
+		download $DESTIN $URL
+		echo "Download completed, extracting..."
+		tar xvjpf $DESTIN -C $FILEPATH/
+		echo "Done, Continuing installation..."
+	fi #FI 1
+}
+
+#Seedmanager Installation function
+
+function doinstall.seedmanager() {
+	echo "Gathering files for PiMP $PIMP_VERSION....."
+	download /tmp/seedmanager.zip $SMURL
+	cd /opt/pimp/
+	echo "moving old /opt/pimp/sminstall install directory....."
+	sleep 2
+	rm -rf /opt/pimp/sminstall.pimpdist 2> /dev/null
+	mv /opt/pimp/sminstall /opt/pimp/sminstall.pimpdist
+	echo "Extracting new seed manager.... Everyone thank LILY!!!!"
+	sleep 2
+	unzip -q /tmp/seedmanager.zip -d /opt/pimp/sminstall
+	echo "Installing new seedmanager"
+	sleep 2
+	cd /opt/pimp/sminstall/Linux-SeedManager-master/
+	 ./install-sm.pl -q
+	echo "Setting permissions on seedmanager.conf just incase these are wrong.."
+	chown www-data.root /opt/ifmi/seedmanager.conf
+	echo "Successfully installed updated seedmanager"
+	$THELINE
+	rm /tmp/seedmanager.zip
+	f.return
+}
+
+#Installer function-Pimp poolmanager upgrader
+function doinstall.poolmanager() {
+	$THELINE
+	echo "PiMP $PIMP_VERSION detected, Continuing installation"
+	echo "IMPORTANT: Poolmanager now requires Proc::Daemon perl module for on boot mining & graphing."
+	echo "This will automatically be installed as poolmanager updates."
+	echo "This is to alleviate issues with crontab causing breaks in graphings & bootmining issues."
+	download /tmp/poolmanager.zip $PMURL
+	echo "Installing libproc-daemon-perl dependency.."
+	echo "if this is already installed it will just verify that it is installed."
+	apt-get install -y libproc-daemon-perl
+	cd /opt/pimp/
+	echo "Moving old /opt/pimp/pminstall install directory....."
+	sleep 2
+	rm -rf /opt/pimp/pminstall.pimpdist 2> /dev/null
+	mv /opt/pimp/pminstall /opt/pimp/pminstall.pimpdist
+	echo "Extracting new pool manager.... Everyone thank LILY!!!!"
+	sleep 2
+	unzip -q /tmp/poolmanager.zip -d /opt/pimp/pminstall
+#git clone https://github.com/starlilyth/Linux-PoolManager.git /opt/pimp/pminstall
+	echo "Installing new poolmanager"
+	sleep 2
+	cd /opt/pimp/pminstall/Linux-PoolManager-master/
+ 	./install-pm.pl -q
+	echo "Setting permissions on poolmanager.conf just incase these are wrong.."
+	chown www-data.root /opt/ifmi/poolmanager.conf
+	echo "Successfully installed updated poolmanager"
+	rm /tmp/poolmanager.zip
+	$THELINE
+	f.return
+}
+
+#Seedmanager profiles
+function doinstall.smprofiles() {
+echo "Update seedmanager.conf with the latest Seedmanager profile?"
+echo "Note this will reset your email notification settings"
+echo -n "Install updated profile? (y/n):"
+	read SMPROFILES
+	if [ $SMPROFILES == y ]; then
+		/opt/ifmi/smcontrol stop 2>/dev/null
+		echo "Downloading latest seedmanager.conf"
+		download /tmp/seedmanager.conf.tbz2 http://files.getpimp.org/smupdate/seedmanager.conf.tbz2
+
+	    echo "Backing up old seedmanager.conf to /opt/ifmi/seedmanager.conf.bak"
+	    if [[ -e /opt/ifmi/seedmanager.conf ]]; then
+	    	mv /opt/ifmi/seedmanager.conf /opt/ifmi/seedmanager.conf.bak
+	    	tar jxvf /tmp/seedmanager.conf.tbz2 -C /opt/ifmi/ > /tmp/pmprofile.log
+	    	chown www-data.root /opt/ifmi/seedmanager.conf
+	    	sleep 2
+	    else 
+	    	echo "No seedmanager.conf found to back up...Continuing..."
+	    	tar jxvf /tmp/seedmanager.conf.tbz2 -C /opt/ifmi/ > /tmp/pmprofile.log
+	    	chown www-data.root /opt/ifmi/seedmanager.conf
+	    	sleep 2
+		fi
+		echo "Updated Seedmanager profile installed...Enjoy!"
+		echo "Remember to reconfigure your email alert settings after using this feature"
+		rm /tmp/seedmanager.conf.tbz2
+		echo "Restarting mining..... (May take 30-45 seconds!)"
+		/opt/ifmi/smcontrol start
+		echo "Script completed! Please report bugs to Sling00 in #PIMP irc.freenode.net"
+		sleep 5
+		f.return
+	else echo "Returning to menu, you didn't enter y to continue."
+	pimpmenu
+fi
+}
+#NH Profiles for Poolmanager
+function doinstall.nhprofiles() {
+echo "Installer for Nicehash/Westhash multi algorithm mining with auto switching based on profitability."
+echo "Update poolmanager.conf with latest miner profiles and add cgminer.nhmulti.conf / cgminer.whmulti.conf"
+echo "Note this will reset your active mining profile to the default, as well as remove any email notification settings"
+echo "Please read this first!: http://www.getpimp.org/community/blog/165-nicehash.html"
+echo -n "Install New profiles & Tools? (y/n):"
+	read NHPROFILES
+	if [ $NHPROFILES == y ]; then
+		f.minestop
+		echo "Downloading new profiles, changebtcaddress script, and cleanbins script..."
+		download /tmp/poolmanager.conf.tbz2 http://files.getpimp.org/pimpupdate/1.5.6-nicehash/nhprofiles.tbz2
+		download /tmp/pimpscripts.tbz2 http://files.getpimp.org/pimpupdate/1.5.6-nicehash/pimpscriptsupdate.tbz2
+	    echo "Backing up old poolmanager.conf to /opt/ifmi/poolmanager.conf.bak"
+	    if [[ -e /opt/ifmi/poolmanager.conf ]]; then
+	    	mv /opt/ifmi/poolmanager.conf /opt/ifmi/poolmanager.conf.bak
+	    else echo "No poolmanager.conf found to back up...Continuing..."
+		fi
+		tar jxvf /tmp/poolmanager.conf.tbz2 -C /opt/ifmi/ > /tmp/pmprofile.log
+	    echo "Poolmanager.conf unpacked, repairing permissions..."
+	    chown www-data.root /opt/ifmi/poolmanager.conf
+	    if [[ ! -e /opt/pimp/changebtcaddress ]]; then
+	    echo "Unpacking changebtcaddress and cleanbins to /opt/pimp/"
+	    tar jxvf /tmp/pimpscripts.tbz2 -C /opt/pimp/ > /tmp/pmprofile.log 
+	    else 
+	    echo "/opt/pimp/changebtcaddress already exists, not overwriting."
+	    fi 
+	    sleep 2
+		echo "Remember to reconfigure your email alert settings after this installer finishes!"
+		rm /tmp/poolmanager.conf.tbz2
+		rm /tmp/pimpscripts.tbz2
+		f.minestart
+		echo "Done..."
+		echo "Script completed! Please report bugs to Sling00 in #PIMP irc.freenode.net"
+		f.return
+	else 
+	echo "Try again! you must enter y to continue."
+	f.return
+fi
+}
+#Poolmanager Profiles
+function doinstall.pmprofiles2() {
+echo "Update poolmanager.conf with latest miner profiles (DOES NOT REPLACE YOUR CGMINER.CONF FILES)"
+echo "Note this will reset your active mining profile to scrypt, as well as remove any email notification settings"
+echo -n "Install updated profiles? (y/n):"
+	read PMPROFILES
+	if [ $PMPROFILES == y ]; then
+		f.minestop
+	    echo "Backing up old poolmanager.conf to /opt/ifmi/poolmanager.conf.bak"
+	    if [[ -e /opt/ifmi/poolmanager.conf ]]; then
+	    	mv /opt/ifmi/poolmanager.conf /opt/ifmi/poolmanager.conf.bak
+	    	tar jxvf /tmp/poolmanager.conf.tbz2 -C /opt/ifmi/ > /tmp/pmprofile.log
+	    	chown www-data.root /opt/ifmi/poolmanager.conf
+	    	sleep 2
+	    else echo "No poolmanager.conf found to back up...Continuing..."
+		fi
+		echo "Remember to reconfigure your email alert settings after using this feature"
+		rm /tmp/poolmanager.conf.tbz2
+		f.minestart
+		echo "Done..."
+		echo "Script completed! Please report bugs to Sling00 in #PIMP irc.freenode.net"
+		f.return
+	else 
+	echo "Try again! you must enter y to continue."
+	f.return
+fi
+}
+function doinstall.pmprofiles() {
+	sleep 3
+	echo "Gathering files for PiMP $PIMP_VERSION....."
+	case $PIMP_VERSION in
+	 	1.0 )
+			CVERS="1.0"
+			;;
+		1.1 )
+			CVERS="1.1"
+			;;
+		1.2 )
+			CVERS="1.2"
+			;;
+		1.3.1 )
+			CVERS="1.3.1"
+			;;
+		1.3.7h | 1.3.7t )
+			CVERS="1.3.7h"
+			;;
+		1.4-amd-12.8 | 1.4-amd-13.12 | 1.4-amd-14.4 )
+			CVERS="1.4-amd-12.8"
+			;;
+		1.4.1-amd-12.8 | 1.4.1-amd-13.12 | 1.4.1-amd-14.4 )
+			CVERS="1.4.1-amd-12.8"
+			;;
+		1.4.2-amd-12.8 | 1.4.2-amd-13.12 | 1.4.2-amd-14.4 )
+			CVERS="1.4.2-amd-12.8"
+			;;
+		1.4.3-amd-13.12 | 1.5.2-amd-14.4 | 1.5.2-amd-13.12 | 1.4.3-amd-13.12 )
+			CVERS="1.5.3-amd-13.12"
+			;;
+		1.5.3-amd-13.12 | 1.5.3-amd-14.4 )
+			CVERS="1.5.3-amd-13.12"
+			;;
+		1.4.4-amd-13.12 | 1.4.4-amd-14.4 | 1.5.5-amd-13.12 | 1.5.5-amd-14.4 | 1.5.4-amd-14.4 | 1.5.4-amd-13.12 )
+			CVERS="1.5.5-amd-13.12"
+			;;
+		1.5.51-amd-14.4 | 1.5.52-amd-14.4 | 1.5.6-amd-13.12 | 1.5.6-amd-14.4 | 1.5.6-amd-14.6 )
+		    CVERS="1.5.6-amd-14.4"
+			;;
+		1.6.0-amd-13.12 | 1.6.0-amd-14.6 | 1.6.0-amd-14.9 | 1.7.0-amd-13.12 | 1.7.0-amd-14.6 | 1.7.0-amd-14.9 )
+			CVERS="1.6.0-amd-14.4"
+			;;	
+		1.9.0-amd-14.6 )
+			CVERS="1.6.0-amd-14.4"
+			;;
+		* )
+			echo "NON RELEASE/BETA VERSION DETECTED - Gathering generic poolmanager.conf"
+			CVERS="generic"
+			;;
+	esac	
+	download /tmp/poolmanager.conf.tbz2 http://files.getpimp.org/pmupdate/poolmanager.conf.$CVERS.tbz2
+	doinstall.pmprofiles2
+}
+
+#Cpanm / Farmwatcher installation support functions
+function get_cpanm(){
+    if [ \! -f /usr/local/bin/cpanm ]; then
+    		echo "Cpanm not found, Downloading and installing.."
+    		echo "This can take a while....."
+    		sleep 3
+            cd $TMP_DIR && curl --insecure -L http://cpanmin.us | perl - App::cpanminus
+            if [ \! -f /usr/local/bin/cpanm ]; then
+                    echo "Downloading from cpanmin.us failed, downloading from xrl.us"
+                    curl -LO http://xrl.us/cpanm &&
+            chmod +x cpanm &&
+            mv cpanm /usr/local/bin/cpanm
+            fi
+    fi
+    CPANM=$(which cpanm);
+    if [ \! -f "$CPANM" ]; then
+            echo "ERROR: Unable to find cpanm"
+            return 1;
+    fi
+    return 0
+}
+
+#Farmwatcher installation function
+function doinstall.farmwatcher() {
+	echo "This installs the new replacement for Farmview, FarmWatcher!"
+	echo "Farmwatcher is able to listen for rigs via udp like Farmview,"
+	echo "And also via api, so you can now monitor windows boxen or get more info"
+	echo "From your Pimp/linux boxes!"
+	if [ -z "$1" ]; then
+		echo -n "Continue installation? (y/n):"
+		read FWCONTINUE
+		if [ $FWCONTINUE = "y" ]; then
+			doinstall.farmwatcher1
+	    else 
+	    	f.return
+		fi
+	else 
+		doinstall.farmwatcher1
+	fi
+}
+function doinstall.farmwatcher1() {
+	echo "Killing poolmanager and farmview if they are running..."
+	killall -9 run-poolmanager.pl 2>&1 > /dev/null
+	killall -9 farmview 2>&1 > /dev/null
+	if [ -f "/opt/ifmi/farmview" ]; then
+		echo "Removing old farmview leftovers..."
+		rm -rf /opt/ifmi/farmview
+	fi
+	if [ -f "/var/www/farmview.html" ]; then
+		echo "Removing old farmview.html file.."
+		rm -rf /var/www/farmview.html
+	fi
+	echo "Checking for cpanm...."
+	get_cpanm
+	echo "Cpanm located, installing perl module dependencies"
+	cpanm DBI 
+	cpanm Proc::ProcessTable
+	cpanm DBD::SQLite
+	echo "Deps installed, downloading farmwatcher."
+	download /tmp/farmwatcher.zip https://github.com/starlilyth/Linux-FarmWatcher/archive/master.zip
+	echo "Download finished...extracting files..."
+	if [ -d "/opt/pimp/fwinstall" ]; then
+		echo "Removing old /opt/pimp/fwinstall"
+		rm -rf /opt/pimp/fwinstall
+	fi
+	unzip /tmp/farmwatcher.zip -d /opt/pimp/fwinstall/
+	cd /opt/pimp/fwinstall/Linux-FarmWatcher-master/
+	echo "Extraction finished...Now Installing fw... EVERYONE THANK LILY!"
+	./install-fw.pl -q
+	f.return
+}
+
+function pimpmenu() {
+PIMP_VERSION2=`sed -n '2,2p' /etc/version | cut -d "-" -f 1,2`
+	case $PIMP_VERSION2 in
+	   	1.3.1-amd | 1.4-amd | 1.4.1-amd )
+			pimpmenu14
+		;;
+	   	1.4.2-amd )
+			pimpmenu141
+		;;
+		1.4.3-amd )
+			pimpmenu143
+		;;
+		1.4.4-amd )
+			pimpmenu144
+		;;
+		1.5.2-amd )
+			pimpmenu151
+		;;
+		1.5.3-amd )
+			pimpmenu153
+		;;
+		1.5.4-amd | 1.5.5-amd )
+			pimpmenu155
+		;;
+		1.5.51-amd | 1.5.52-amd )
+			pimpmenu1551
+		;;
+		1.5.6-amd )
+			pimpmenu156
+		;;
+		1.5.61-amd | 1.5.62-amd | 1.6.0-amd )
+			pimpmenu160
+		;;
+		1.4.8-amd | 1.4.9-amd | 1.7.0-amd )
+			pimpmenu170
+		;;
+		1.9.0-amd )
+			pimpmenu190
+		;;
+		* )
+		echo "Error: This version is not yet supported by pimpupdate."
+		exit 1
+		;;
+	esac
+}
+
+function f.updatepimpupdate() {
+if [ -z "$1" ]; then 
+	echo -n "Do you wish to continue to the main menu Enter (y/n): "
+	read PMPUPDATE_CONTINUE
+	if [ "$PMPUPDATE_CONTINUE" == y ]; then
+	#Is pimpupdate up to date?! Updater code below...
+	echo "Current PiMPUpdate Version: $SCRIPT_VERSION"		
+	echo "Checking if Pimpupdate is up to date........"
+		if [ "$SCRIPT_NEW_VERSION" \> "$SCRIPT_VERSION" ]; then
+			echo -n "pimpupdate script is out of date! Would you like it to update itself to version $SCRIPT_NEW_VERSION? (y/n): "
+			read PMPUPDATE_UPDATE
+			if [ "$PMPUPDATE_UPDATE" == y ]; then
+				echo "Getting latest version of PiMPUpdate"
+				download /tmp/pimpupdate.tar http://files.getpimp.org/pimpupdate/pimpupdate.tar
+				tar xvf /tmp/pimpupdate.tar -C /opt/pimp/ > /tmp/pimpupdate.log
+				echo "Update completed. Please rerun pimpupdate to continue."
+				rm /tmp/pimpupdate.tar
+				exit 0
+			else
+				echo "not updating...Continue at your own risk....."
+				$THELINE
+				f.pimpupdatenews
+				pimpmenu
+			fi
+		else 
+			echo "Script up to date, Continuing to the menu."
+		fi
+	$THELINE
+	f.pimpupdatenews
+	pimpmenu
+	else
+	echo "Error: Stopping because the user didn't answer y when prompted."
+	exit 1
+	fi
+fi
+}
+function f.updateunattend() {
+		echo "Checking if Pimpupdate is up to date........"
+	if [ $SCRIPT_NEW_VERSION \> $SCRIPT_VERSION ]; then
+		echo "Getting latest version of PiMPUpdate"
+		download /tmp/pimpupdate.tar http://files.getpimp.org/pimpupdate/pimpupdate.tar
+		tar xvf /tmp/pimpupdate.tar -C /opt/pimp/ > /tmp/pimpupdate.log
+		echo "Update completed. rerunning pimpupdate."
+		rm /tmp/pimpupdate.tar
+		PROGNAME=$0
+		( shift; "$PROGNAME" $* ) | grep $1
+		exit 0
+	else 
+		echo "Script up to date"
+	fi
+}
+#Work begins below#
+if [ "$UID" -ne 0 ]; then
+  echo "ERROR: Please run as root"
+  exit 1
+fi
+
+f.pimpupdateskel  
+clear
+$THELINE
+echo -e '\E[00;34m'"\033[1mPiMPUpdate Version $SCRIPT_VERSION\033[0m"
+echo -e '\E[00;31m'"\033[1mScript by Sling00\033[0m"
+$THELINE
+#Do we have an argument?
+if [ -z "$1" ]; then
+	f.updatepimpupdate
+fi
+
+if [ ! -z "$1" ]; then #If arg
+	case $1 in
+	1 )
+	doinstall.poolmanager
+	;;
+	2 )
+	doinstall.seedmanager
+	;;
+	3 )
+	doinstall.x15modunattended
+	;;
+	4 )
+	doinstall.promptfix
+	;;
+	5 ) 
+	doinstall.farmwatcher
+	;;
+	6 )
+	pimp15xto156auto
+	;;
+	7 )
+	doinstall.blake256unattend
+	;;
+	8 ) 
+	doinstall.neoscrypt
+	;;
+	9 )
+	doinstall.zr5
+	;;
+	update ) 
+	f.updateunattend
+	;;
+	* )
+	echo "Valid command line arguments:" 
+	echo "1 - update poolmanger"
+	echo "2 - update seedmanager"
+	echo "3 - install sg5/x15 miner"
+	echo "4 - 1.5.5 prompt fix"
+	echo "5 - install/update FarmWatcher"
+	echo "6 - Upgrade pimp 1.5.x to 1.5.6"
+	echo "7 - blake256 miner/profile install (1.5.x only)"
+	echo "8 - Neoscrypt update, USER INPUT REQUIRED"
+	echo "9 - ZR5 Ziftrcoin"
+	echo "help - show this menu"
+	echo "update - update pimpupdate script"
+	;;
+	esac
+fi 
