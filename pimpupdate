@@ -1,16 +1,16 @@
 #!/bin/bash
 #pimpupdate - Created by sling00  irc.freenode.net #pimp
-#Report issues/submit fixes to: https://github.com/sling00/pimpupdate
+#Report issues/submit fixes to: https://github.com/melt7777/pimpupdate
 #No warranty whatsoever expressed or implied, if this breaks your couch in half and then launches you with an airbag, its not my fault. 
 #If you use printed copys to burn down your house, also not my fault, lose data. not my fault. lose time...not my fault. 
 #However if you like it.
 #VARIABLES DON'T TOUCH UNLESS YOU KNOW WHAT YOU ARE GOING TO BREAK!
-SCRIPT_VERSION=1.4.6
+SCRIPT_VERSION=1.8
 PIMP_VERSION=`sed -n '2,2p' /etc/version`
 CURL2='/usr/bin/curl'
 PMUPDATEVERURL="http://files.getpimp.org/pimpupdate/version"
 CURLARGS="-f -s -S -k"
-PMURL="https://github.com/starlilyth/Linux-PoolManager/archive/master.zip"
+PMURL="https://github.com/melt7777/Linux-PoolManager/archive/pimp.zip"
 SMURL="https://github.com/starlilyth/Linux-SeedManager/archive/master.zip"
 SCRIPT_NEW_VERSION="$($CURL2 $CURLARGS $PMUPDATEVERURL)"
 THELINE='echo -====================================================================-'
@@ -87,14 +87,11 @@ function f.pimpupdatenews() {
 	$THELINE
 	echo -e $RED"\tPiMP Updater V. $SCRIPT_VERSION Latest news:$STD"
 	$THELINE
-	echo "March. 28/2015: Added Wolf ZR5 miner and bin updater to miner menu"
-	echo "Mar. 9/2015: Added ZR5 Algorithm miner (Ziftrcoin) to minermenu."
-	echo "Jan. 15/2015: Added spreadcoin miner to minermenu."
-	echo "Dec. 16/2014: Added badman74 lyra2re branch to minerbuild menu of pimpupdate, replaces -develop profile miner, may break neoscrypt. test at your own risk."
-	echo "Nov. 24/2014: Added neoscrypt profiles.  Check the website for blog entry detailing how to add Nicehash/Westhash neoscrypt capability!"
+	echo "2016-09-01 Updated for PiMP Classic 1.8 release. removed old miners."
+	echo -e $RED" -> Note: it's not possible to update to PiMP 1.8. You must re-image."
 	echo "Pimpupdate now accepts command line options, type pimpupdate help to get a list!"
 	echo "Don't forget to visit us on IRC!"
-	echo "irc.freenode.net #PiMP"
+	echo "Visit https://getpimp.org/help or type livechat at the terminal."
 	sleep 3
 }
 
@@ -217,7 +214,7 @@ echo -n "Install updated profile? (y/n):"
 		rm /tmp/seedmanager.conf.tbz2
 		echo "Restarting mining..... (May take 30-45 seconds!)"
 		/opt/ifmi/smcontrol start
-		echo "Script completed! Please report bugs to Sling00 in #PIMP irc.freenode.net"
+		echo "Script completed! Please report bugs to getPiMP Team in #PIMP irc.freenode.net"
 		sleep 5
 		f.return
 	else echo "Returning to menu, you didn't enter y to continue."
@@ -257,7 +254,7 @@ echo -n "Install New profiles & Tools? (y/n):"
 		rm /tmp/pimpscripts.tbz2
 		f.minestart
 		echo "Done..."
-		echo "Script completed! Please report bugs to Sling00 in #PIMP irc.freenode.net"
+		echo "Script completed! Please report bugs to getPiMP Team in #PIMP irc.freenode.net"
 		f.return
 	else 
 	echo "Try again! you must enter y to continue."
@@ -284,7 +281,7 @@ echo -n "Install updated profiles? (y/n):"
 		rm /tmp/poolmanager.conf.tbz2
 		f.minestart
 		echo "Done..."
-		echo "Script completed! Please report bugs to Sling00 in #PIMP irc.freenode.net"
+		echo "Script completed! Please report bugs to getPiMP team."
 		f.return
 	else 
 	echo "Try again! you must enter y to continue."
@@ -334,8 +331,8 @@ function doinstall.pmprofiles() {
 		1.6.0-amd-13.12 | 1.6.0-amd-14.6 | 1.6.0-amd-14.9 | 1.7.0-amd-13.12 | 1.7.0-amd-14.6 | 1.7.0-amd-14.9 )
 			CVERS="1.6.0-amd-14.4"
 			;;	
-		1.9.0-amd-14.6 )
-			CVERS="1.6.0-amd-14.4"
+		1.8.0-amd-15.12 )
+			CVERS="1.8.0-amd-15.12"
 			;;
 		* )
 			echo "NON RELEASE/BETA VERSION DETECTED - Gathering generic poolmanager.conf"
@@ -454,8 +451,8 @@ PIMP_VERSION2=`sed -n '2,2p' /etc/version | cut -d "-" -f 1,2`
 		1.4.8-amd | 1.4.9-amd | 1.7.0-amd )
 			pimpmenu170
 		;;
-		1.9.0-amd )
-			pimpmenu190
+		1.8-amd | 1.8.0-amd )
+			pimpmenu180
 		;;
 		* )
 		echo "Error: This version is not yet supported by pimpupdate."
@@ -525,7 +522,7 @@ f.pimpupdateskel
 clear
 $THELINE
 echo -e '\E[00;34m'"\033[1mPiMPUpdate Version $SCRIPT_VERSION\033[0m"
-echo -e '\E[00;31m'"\033[1mScript by Sling00\033[0m"
+echo -e '\E[00;31m'"\033[1mCopyright (c) 2016 getPiMP.org\033[0m"
 $THELINE
 #Do we have an argument?
 if [ -z "$1" ]; then
@@ -558,9 +555,6 @@ if [ ! -z "$1" ]; then #If arg
 	8 ) 
 	doinstall.neoscrypt
 	;;
-	9 )
-	doinstall.zr5
-	;;
 	update ) 
 	f.updateunattend
 	;;
@@ -574,7 +568,7 @@ if [ ! -z "$1" ]; then #If arg
 	echo "6 - Upgrade pimp 1.5.x to 1.5.6"
 	echo "7 - blake256 miner/profile install (1.5.x only)"
 	echo "8 - Neoscrypt update, USER INPUT REQUIRED"
-	echo "9 - ZR5 Ziftrcoin"
+	#echo "9 - ZR5 Ziftrcoin"
 	echo "help - show this menu"
 	echo "update - update pimpupdate script"
 	;;

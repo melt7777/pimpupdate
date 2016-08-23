@@ -1,7 +1,29 @@
-pimpupdate
-==========
+<p align="center">
+  <img src="http://files.getpimp.org/pimp-ng/art/pimpclassic-leaderboard-728x90.png
+" alt="pimp banner">
+</p>
 
-PiMP update script for fetching and deploying small patches.
+
+## Portable Instant Mining Platform
+## PiMP CLASSiC: pimpupdate
+
+### Support: #PiMP on FreenodeIRC
+### https://getPiMP.org/help
+
+Copyright (c) 2016 getPiMP.org.  All Rights Reserved.
+
+Author: PiMP team (info@getpimp.org)
+
+License: This code is licensed for use by getPiMP.org customers only.
+
+Description: Provide user-friendly terminal-user-interface
+    for updating, configuring and administering PiMP linux mining rigs.
+
+---
+
+## Introduction
+
+PiMP update script for fetching and deploying small patches and mining software.
 
 Installation: cp pimpupdate/pimpupdate /opt/pimp
 
@@ -22,6 +44,5 @@ This allows for fixes to be rolled out without requiring a total reflash of the 
 
 What's Next?
 ============
-1. Add support for changing installed miners to different versions (restore the shipped version, change between incremental milestones etc.)
-2. Integrate mine start/stop functions. where needed. (Mostly done)
-3. Integrate logging. ( /tmp/pimpupdate.log )
+Nothing planned.
+

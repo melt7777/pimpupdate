@@ -1,6 +1,6 @@
 #!/bin/bash
 #This file is an include to pimpupdate and will not run standalone.
-#Menu function for pimp 1.7.0 (64bit)
+#Menu function for pimp 1.8.0 (64bit)
 
 function pimpmenu.new() {
 HEADER1="What would you like to do?"
@@ -8,8 +8,55 @@ MO1="1. Update Poolmanager"
 MO2="2. Reinstall Poolmanager profiles (Use if you deleted poolmanager.conf)"
 MO3="3. Update Seedmanager"
 MO4="4. Reinstall seedmanager profiles (Use if you deleted seedmanager.conf)"
+}
 
-
+function pimpmenu180() {
+local PMSELECT_1="1. Update Poolmanager"
+local PMSELECT_2="2. Reinstall Poolmanager profiles (Use if you deleted poolmanager.conf)"
+local PMSELECT_3="3. Update Seedmanager"
+local PMSELECT_4="4. Reinstall seedmanager profiles (Use if you deleted seedmanager.conf)"
+local PMSELECT_5="5. Update miners using minermenu"
+echo "What would you like to do?"
+echo $PMSELECT_1
+echo $PMSELECT_2 
+echo $PMSELECT_3
+echo $PMSELECT_4
+echo $PMSELECT_5
+echo "or q to exit"
+echo -n "Which one? 1-5: "
+	read PMSELECTNUM
+	if [ $PMSELECTNUM == q ];
+		then exit 0
+	else
+	echo -n "You selected $PMSELECT_$PMSELECTNUM Correct? (y/n): "
+	read PMSELECT_CONTINUE
+	if [ $PMSELECT_CONTINUE == y ];
+	then 
+	case $PMSELECTNUM in
+		1 )
+		doinstall.poolmanager
+		;;
+		2 )
+		doinstall.pmprofiles
+		;;
+		3 )
+		doinstall.seedmanager
+		;;
+		4 )
+		doinstall.smprofiles
+		;;
+		5 ) 
+		clear
+		f.minermenu
+		;;
+	esac
+	else
+	$THELINE
+	echo "Invalid Selection,"
+	echo "Returning to menu"
+	pimpmenu
+fi
+fi
 }
 
 function pimpmenu170() {
