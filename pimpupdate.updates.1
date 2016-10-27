@@ -21,9 +21,14 @@ function f.pimp180to181() {
 	echo "Extracting pimp classic 1.8 to 1.8.1 patches..."
 	tar xvfj /tmp/$UPDATEFILE
 
-	# add new libc++6 for zcash
+	# add new libc++6 for zcash and lcd support
 	echo "Installing OS updates..."
+
 	apt -y install lcdproc
+	service LCDd start
+	update-rc.d LCDd defaults
+	lcdproc
+
 	cd /opt/zcashgpuminer-0.1.0
 	dpkg -i *.deb
 	rm *.deb
