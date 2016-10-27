@@ -77,24 +77,33 @@ function buildminer.4 {
 	echo "Making clean..."
 	make clean &> /dev/null
 	cd /root/minerbuild/$MINERDIRNAME
-	buildminer.checkadl
-	if [ "$MINERDIRNAME2" = "/opt/sgminer" ]; then
-		echo "Checking out jansson library"
-		git submodule init 
-		git submodule update
-	fi
+	# Eth miners
+	if [ "$MINEREXECNAME" = "build/ethminer/ethminer" ]; then
+		mkdir build && cd build
+		cmake -DBUNDLE=miner ..
+		sleep 3
+		make
+	else
+		# non eth miners
+		buildminer.checkadl
+		if [ "$MINERDIRNAME2" = "/opt/sgminer" ]; then
+			echo "Checking out jansson library"
+			git submodule init 
+			git submodule update
+		fi
 
-	if [ "$MINEREXECNAME" = "sgminer" ]; then
-		echo "Running autoreconf -ivf"
-		autoreconf -ivf
+		if [ "$MINEREXECNAME" = "sgminer" ]; then
+			echo "Running autoreconf -ivf"
+			autoreconf -ivf
+		fi
+		if  [ "$MINEREXECNAME" = "bfgminer" ]; then
+			echo "Running autogen.sh"
+			./autogen.sh
+		fi
+		CFLAGS="$MCFLAGS" ./$MINERCONFIGCOMMAND $MINERCONFIGFLAGS
+		sleep 3
+		make
 	fi
-	if  [ "$MINEREXECNAME" = "bfgminer" ]; then
-		echo "Running autogen.sh"
-		./autogen.sh
-	fi
-	CFLAGS="$MCFLAGS" ./$MINERCONFIGCOMMAND $MINERCONFIGFLAGS
-	sleep 3
-	make
 	if [ -x /root/minerbuild/$MINERDIRNAME/$MINEREXECNAME ];
 		then 
 		echo "Compile completed successfully."
@@ -220,7 +229,7 @@ function dobuild.sgminer() {
 	MINERCONFIGCOMMAND="configure"
 	MINERGETMETHOD="git"
 	MINERGETFLAGS="clone"
-	MINERGETURL="https://github.com/sgminer-dev/sgminer.git"
+	MINERGETURL="https://github.com/genesismining/sgminer-gm/"
 	buildminer.2
 }
 
@@ -265,34 +274,70 @@ function dobuild.cgminer() {
 	buildminer.2
 }
 
+function dobuild.lbrycrd() {
+	MINERNAME="LbryCrd"
+	MINERDIRNAME="lbrycrd-gpu"
+	MINERDIRNAME2="/opt/lbrycrd-gpu"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="yes"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/github.com/lbryio/lbrycrd-gpu"
+	buildminer.2
+}
+
+function dobuild.cpp-ethereum {
+	MINERNAME="CPP-Ethereum"
+	MINERDIRNAME="cpp-ethereum"
+	MINERDIRNAME2="/opt/cpp-ethereum"
+	MINEREXECNAME="build/ethminer/ethminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="mkdir build && cd build && cmake -DBUNDLE=miner .."
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/Genoil/cpp-ethereum/"
+	buildminer.2
+}
+
+function dobuild.lbry {
+	MINERNAME="LbryCrd"
+	MINERDIRNAME="lbrycrd-gpu"
+	MINERDIRNAME2="/opt/lbrycrd-gpu"
+	MINEREXECNAME="sgminer"
+	MINERUSELSOC="no"
+	MINERCONFIGFLAGS=" "
+	MINERCONFIGCOMMAND="configure"
+	MINERGETMETHOD="git"
+	MINERGETFLAGS="clone"
+	MINERGETURL="https://github.com/lbryio/lbrycrd-gpu/"
+	buildminer.2
+}
 
 
 function f.minermenu() {
 $THELINE
 echo "			Miner build menu"
 $THELINE
-local MSELECT_1="1. Update Sgminer5 (Many algorithms, main branch.)"
+local MSELECT_1="1. Update Sgminer (Many algorithms, main branch.)"
 local MSELECT_2="2. Update BFGminer (ASIC, Gridseeds, scrypt)"
 local MSELECT_3="3. Update Cgminer-3.7.2 (Ckolivas) (For custom ASIC profiles.)"
 local MSELECT_4="4. Update Cgminer-4.3.0-Gridseed (ASIC/Gridseed ONLY)"
+local MSELECT_5="5. Update CPP-Ethereum"
+local MSELECT_7="6. Update LbryCrd"
 echo "What would you like to do?"
 echo $MSELECT_1
 echo $MSELECT_2 
 echo $MSELECT_3
 echo $MSELECT_4
-#echo $MSELECT_5
-#echo $MSELECT_6
-#echo $MSELECT_7
-#echo $MSELECT_8
-#echo $MSELECT_9
-#echo $MSELECT_10
-#echo $MSELECT_11
-#echo $MSELECT_12
-#echo $MSELECT_13
-#echo $MSELECT_14
-#echo $MSELECT_15
+echo $MSELECT_5
+echo $MSELECT_6
+echo $MSELECT_7
+echo $MSELECT_8
 echo "or q to exit"
-echo -n "Which one? 1-4: "
+echo -n "Which one? 1-6: "
 	read MINERSELECTNUM
 	if [ $MINERSELECTNUM == q ];
 		then exit 0
@@ -313,6 +358,12 @@ echo -n "Which one? 1-4: "
 		;;
 		4 )
 		dobuild.dmaxl-cgminer
+		;;
+		5 )
+		dobuild.cpp-ethereum
+		;;
+		6 )
+		dobuild.lbry
 		;;
 	  esac
 	else

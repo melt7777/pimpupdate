@@ -1,6 +1,43 @@
 #!/bin/bash
 #This file is an INCLUDE to pimpupdate. not to be run on its own under normal circumstances.
 
+# 1.8.0 to 1.8.1
+function f.pimp180to181() {
+	
+	echo "Backing up confs and minerfarm db...."
+	echo "Note: you will have to re-setup your minerfarm agent / miners in minerfarm."
+	back
+
+	# stop mining
+	echo "Stopping mining...."
+
+	mine stop
+	# download and extract 
+	echo "Downloading pimp classic 1.8 to 1.8.1 patches..."
+	UPDATEFILE="pimp180-181-updates.tbz2"
+	download /tmp/$UPDATEFILE https://files.getpimp.org/pimpupdate/$UPDATEFILE
+	cd /
+
+	echo "Extracting pimp classic 1.8 to 1.8.1 patches..."
+	tar xvfj /tmp/$UPDATEFILE
+
+	# add new libc++6 for zcash
+	echo "Installing OS updates..."
+	apt -y install lcdproc
+	cd /opt/zcashgpuminer-0.1.0
+	dpkg -i *.deb
+	rm *.deb
+
+	# fix unknown bug
+	mv /etc/pkcs11/modules/gnome-keyring-module /etc/pkcs11/modules/gnome-keyring.module
+
+	# done
+	echo "Done updating PiMP 1.8.0 to 1.8.1! Thank you miners for supporting getPiMP!"
+	echo "Zcash GPU miner does not have API support and will not be controllable using our tools yet."
+	echo "To mine Zcash: nano /opt/ifmi/zcash.conf and put your settings, then:"
+	echo "cd /opt/zcashclient-0.1.0 && ./zcashgpuclient"
+	mine start
+}
 
 # 1.4.x stuff ... safe to remove?
 function f.pimpupdateskel() {

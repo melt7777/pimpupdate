@@ -5,13 +5,14 @@
 #If you use printed copys to burn down your house, also not my fault, lose data. not my fault. lose time...not my fault. 
 #However if you like it.
 #VARIABLES DON'T TOUCH UNLESS YOU KNOW WHAT YOU ARE GOING TO BREAK!
-SCRIPT_VERSION=1.8
+SCRIPT_VERSION=20161024
 PIMP_VERSION=`sed -n '2,2p' /etc/version`
 CURL2='/usr/bin/curl'
 PMUPDATEVERURL="http://files.getpimp.org/pimpupdate/version"
 CURLARGS="-f -s -S -k"
 PMURL="https://github.com/melt7777/Linux-PoolManager/archive/pimp.zip"
 SMURL="https://github.com/starlilyth/Linux-SeedManager/archive/master.zip"
+MFURL="https://files.getpimp.org/pimp-classic/mfagent.zip"
 SCRIPT_NEW_VERSION="$($CURL2 $CURLARGS $PMUPDATEVERURL)"
 THELINE='echo -====================================================================-'
 DEV=0
@@ -85,14 +86,14 @@ function f.minestop() {
 
 function f.pimpupdatenews() {
 	$THELINE
-	echo -e $RED"\tPiMP Updater V. $SCRIPT_VERSION Latest news:$STD"
+	echo -e $RED"\tPiMP Updater v$SCRIPT_VERSION Latest news:$STD"
 	$THELINE
+	echo "2016-10-24 mf update, ZCASH!!!!!!!!!!!, new datecode versioning for pimpupdate."
+	echo "2016-10-20 Added more miners, added minerfarm update option."
 	echo "2016-09-01 Updated for PiMP Classic 1.8 release. removed old miners."
-	echo -e $RED" -> Note: it's not possible to update to PiMP 1.8. You must re-image.$STD"
-	echo "Pimpupdate now accepts command line options, type pimpupdate help to get a list!"
-	echo "Don't forget to visit us on IRC!"
-	echo "Visit https://getpimp.org/help or type livechat at the terminal."
-	sleep 3
+	echo -e $RED" -> Note: it's not possible to update the platform to PiMP 1.8 or higher. You must re-image.$STD"
+	echo "For list of command line options, use: pimpupdate help"
+	$THELINE
 }
 
 #Need to define $DATESTAMP and $BACKUPDIR globally before this will work.
@@ -129,8 +130,29 @@ function checkinstall.conffile() {
 	fi #FI 1
 }
 
-#Seedmanager Installation function
+#Download default confs
+function doinstall.defaultconfs() {
+echo "Update /opt/ifmi/defaultconfs/*.conf with the latest Default Example confs?"
+echo "Note: this will not change your active confs in /opt/ifmi! You can copy over the files as needed."
+echo -n "Install updated default confs? (y/n):"
+	read SMPROFILES
+	if [ $SMPROFILES == y ]; then
+		echo "Downloading latest seedmanager.conf"
+		mkdir -p /opt/ifmi/defaultconfs
+		download /opt/ifmi/defaultconfs/defaultconfs.tbz2 http://files.getpimp.org/pimpupdate/defaultconfs.tbz2
+    	echo "Extracting defaultconfs...."
+    	cd /opt/ifmi/defaultconfs
+    	tar jxvf defaultconfs.tbz2 -C /opt/ifmi/
+    	chown www-data.root /opt/ifmi/defaultconfs/*
+		echo "Updated default confs installed...Enjoy!"
+		echo "Script completed! Please report bugs to getPiMP Team in #PIMP irc.freenode.net"
+		sleep 2
+		f.return
+	fi
+}
 
+
+#Seedmanager Installation function
 function doinstall.seedmanager() {
 	echo "Gathering files for PiMP $PIMP_VERSION....."
 	download /tmp/seedmanager.zip $SMURL
@@ -185,6 +207,39 @@ function doinstall.poolmanager() {
 	$THELINE
 	f.return
 }
+
+#Installer function-Pimp minerfarm upgrader
+function doinstall.minerfarm() {
+	$THELINE
+	echo "PiMP $PIMP_VERSION detected, Continuing installation"
+	echo "Stopping minerfarm_svc..."
+	pkill minerfarm_svc
+	echo "Backing up /opt/minerfarm to /opt/minerfarm/backup..."
+	mkdir -p /opt/minerfarm/backup
+	cd /opt/minerfarm
+	rm backup/.minerfarm.db
+	rm backup/*
+	echo "** Deleting minerfarm settings. You will have to reconfigure. **"
+	mv .minerfarm.db backup
+	cp * backup
+	rm *
+	echo "Downloading and extracting new minerfarm agent.... Everyone thank LiLY!!!! :)"
+	mkdir /tmp/mfagent
+	download /tmp/mfagent/mfagent.zip $MFURL
+	sleep 2
+	cd /tmp/mfagent
+	unzip -q mfagent.zip
+	echo "Installing new minerfarm agent.."
+	# use the quiet install option
+ 	./mfInstall-Linux.pl -q
+	echo "Successfully installed updated minerfarm agent!"
+	echo "Restarting minerfarm_svc..."
+	cd /opt/minerfarm
+	rm -r /tmp/mfagent
+	$THELINE
+	f.return
+}
+
 
 #Seedmanager profiles
 function doinstall.smprofiles() {
@@ -264,7 +319,7 @@ fi
 #Poolmanager Profiles
 function doinstall.pmprofiles2() {
 echo "Update poolmanager.conf with latest miner profiles (DOES NOT REPLACE YOUR CGMINER.CONF FILES)"
-echo "Note this will reset your active mining profile to scrypt, as well as remove any email notification settings"
+echo "Note this will reset your active mining profile, as well as remove any email notification settings"
 echo -n "Install updated profiles? (y/n):"
 	read PMPROFILES
 	if [ $PMPROFILES == y ]; then
@@ -331,8 +386,11 @@ function doinstall.pmprofiles() {
 		1.6.0-amd-13.12 | 1.6.0-amd-14.6 | 1.6.0-amd-14.9 | 1.7.0-amd-13.12 | 1.7.0-amd-14.6 | 1.7.0-amd-14.9 )
 			CVERS="1.6.0-amd-14.4"
 			;;	
-		1.8.0-amd-15.12 )
+		1.8.0-amd-15.12 | 1.8.1-amd-15.12 )
 			CVERS="1.8.0-amd-15.12"
+			;;
+		1.9.0-amd-16.30 )
+			CVERS="1.9.0-amd-16.30"
 			;;
 		* )
 			echo "NON RELEASE/BETA VERSION DETECTED - Gathering generic poolmanager.conf"
@@ -451,7 +509,7 @@ PIMP_VERSION2=`sed -n '2,2p' /etc/version | cut -d "-" -f 1,2`
 		1.4.8-amd | 1.4.9-amd | 1.7.0-amd )
 			pimpmenu170
 		;;
-		1.8-amd | 1.8.0-amd )
+		1.8-amd | 1.8.0-amd | 1.8.1-amd )
 			pimpmenu180
 		;;
 		* )
@@ -463,14 +521,11 @@ PIMP_VERSION2=`sed -n '2,2p' /etc/version | cut -d "-" -f 1,2`
 
 function f.updatepimpupdate() {
 if [ -z "$1" ]; then 
-	echo -n "Do you wish to continue to the main menu Enter (y/n): "
-	read PMPUPDATE_CONTINUE
-	if [ "$PMPUPDATE_CONTINUE" == y ]; then
 	#Is pimpupdate up to date?! Updater code below...
 	echo "Current PiMPUpdate Version: $SCRIPT_VERSION"		
 	echo "Checking if Pimpupdate is up to date........"
 		if [ "$SCRIPT_NEW_VERSION" \> "$SCRIPT_VERSION" ]; then
-			echo -n "pimpupdate script is out of date! Would you like it to update itself to version $SCRIPT_NEW_VERSION? (y/n): "
+			echo -n "PiMPupdate: New version available. Do you want to self-update to $SCRIPT_NEW_VERSION? (y/n): "
 			read PMPUPDATE_UPDATE
 			if [ "$PMPUPDATE_UPDATE" == y ]; then
 				echo "Getting latest version of PiMPUpdate"
@@ -491,10 +546,6 @@ if [ -z "$1" ]; then
 	$THELINE
 	f.pimpupdatenews
 	pimpmenu
-	else
-	echo "Error: Stopping because the user didn't answer y when prompted."
-	exit 1
-	fi
 fi
 }
 function f.updateunattend() {
@@ -538,7 +589,8 @@ if [ ! -z "$1" ]; then #If arg
 	doinstall.seedmanager
 	;;
 	3 )
-	doinstall.x15modunattended
+	#doinstall.x15modunattended
+	doinstall.minerfarm
 	;;
 	4 )
 	doinstall.promptfix
@@ -562,12 +614,13 @@ if [ ! -z "$1" ]; then #If arg
 	echo "Valid command line arguments:" 
 	echo "1 - update poolmanger"
 	echo "2 - update seedmanager"
-	echo "3 - install sg5/x15 miner"
-	echo "4 - 1.5.5 prompt fix"
-	echo "5 - install/update FarmWatcher"
-	echo "6 - Upgrade pimp 1.5.x to 1.5.6"
-	echo "7 - blake256 miner/profile install (1.5.x only)"
-	echo "8 - Neoscrypt update, USER INPUT REQUIRED"
+	echo "3 - update minerfarm"
+	#echo "3 - install sg5/x15 miner"
+	#echo "4 - 1.5.5 prompt fix"
+	#echo "5 - install/update FarmWatcher"
+	#echo "6 - Upgrade pimp 1.5.x to 1.5.6"
+	#echo "7 - blake256 miner/profile install (1.5.x only)"
+	#echo "8 - Neoscrypt update, USER INPUT REQUIRED"
 	#echo "9 - ZR5 Ziftrcoin"
 	echo "help - show this menu"
 	echo "update - update pimpupdate script"
