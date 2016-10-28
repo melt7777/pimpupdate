@@ -34,12 +34,12 @@ fi
 		source /root/pimpupdate/pimpupdate.minermenu
 		source /root/pimpupdate/pimpupdate.menus
 		source /root/pimpupdate/pimpupdate.updates.1
-		source /root/pimpupdate/pimpupdate.updates.1.6-1.7
+		#source /root/pimpupdate/pimpupdate.updates.1.6-1.7
 	else
 		source /opt/pimp/pimpupdate.minermenu
 		source /opt/pimp/pimpupdate.menus
 		source /opt/pimp/pimpupdate.updates.1
-		source /opt/pimp/pimpupdate.updates.1.6-1.7
+		#source /opt/pimp/pimpupdate.updates.1.6-1.7
 fi
 
 ##Colors
@@ -390,7 +390,7 @@ function doinstall.pmprofiles() {
 			CVERS="1.8.0-amd-15.12"
 			;;
 		1.9.0-amd-16.30 )
-			CVERS="1.9.0-amd-16.30"
+			CVERS="1.9.0-amd-16.40"
 			;;
 		* )
 			echo "NON RELEASE/BETA VERSION DETECTED - Gathering generic poolmanager.conf"
@@ -512,6 +512,10 @@ PIMP_VERSION2=`sed -n '2,2p' /etc/version | cut -d "-" -f 1,2`
 		1.8-amd | 1.8.0-amd | 1.8.1-amd )
 			pimpmenu180
 		;;
+		1.9-amd | 1.9.0-amd | 1.9.1-amd )
+			pimpmenu190
+		;;
+		
 		* )
 		echo "Error: This version is not yet supported by pimpupdate."
 		exit 1

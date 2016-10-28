@@ -18,6 +18,7 @@ local PMSELECT_4="4. Reinstall seedmanager profiles (Use if you deleted seedmana
 local PMSELECT_5="5. Update miners using minermenu"
 local PMSELECT_6="6. Update minerfarm agent"
 local PMSELECT_7="7. Download the latest default confs to /opt/ifmi/defaultconfs/"
+local PMSELECT_8="8. Update PiMP v1.8 to PiMP v1.8.1"
 echo "What would you like to do?"
 echo $PMSELECT_1
 echo $PMSELECT_2 
@@ -26,8 +27,9 @@ echo $PMSELECT_4
 echo $PMSELECT_5
 echo $PMSELECT_6
 echo $PMSELECT_7
+echo $PMSELECT_8
 echo "or q to exit"
-echo -n "Which one? 1-7: "
+echo -n "Which one? 1-8: "
 	read PMSELECTNUM
 	if [ $PMSELECTNUM == q ];
 		then exit 0
@@ -58,6 +60,9 @@ echo -n "Which one? 1-7: "
 		;;
 		7 )
 		doinstall.defaultconfs
+		;;
+		8 )
+		f.pimp180to181
 		;;
 	esac
 	else

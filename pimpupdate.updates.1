@@ -18,20 +18,63 @@ function f.pimp180to181() {
 	download /tmp/$UPDATEFILE https://files.getpimp.org/pimpupdate/$UPDATEFILE
 	cd /
 
-	echo "Extracting pimp classic 1.8 to 1.8.1 patches..."
+	echo "[PiMP] Extracting pimp classic 1.8 to 1.8.1 patches..."
 	tar xvfj /tmp/$UPDATEFILE
 
-	# add new libc++6 for zcash and lcd support
-	echo "Installing OS updates..."
-
-	apt -y install lcdproc
-	service LCDd start
-	update-rc.d LCDd defaults
-	lcdproc
-
-	cd /opt/zcashgpuminer-0.1.0
+	echo "[PiMP] Installing new OS packages ..."
+	cd /root/.updates
 	dpkg -i *.deb
 	rm *.deb
+	apt -y install lcdproc protobuf-compiler
+	service LCDd start
+	update-rc.d LCDd defaults
+	sleep 5
+	lcdproc
+
+	echo "[PiMP] Installing Zcash updates... This may take several minutes to compile all the dependencies...."
+
+	mkdir -p /opt/pimp/lib
+	cd /opt/pimp/lib
+	
+	echo "[PiMP] dep 1..."
+	git clone git://github.com/jedisct1/libsodium.git
+	cd libsodium
+	./autogen.sh
+	./configure && make check
+	sudo make install
+	sudo ldconfig
+	cd ..
+
+	echo "[PiMP] dep 2..."
+	git clone git://github.com/zeromq/libzmq.git
+	cd libzmq
+	./autogen.sh
+	./configure && make check
+	sudo make install
+	sudo ldconfig
+	cd ..
+
+	echo "[PiMP] dep 3..."
+	git clone git://github.com/zeromq/czmq.git
+	cd czmq
+	./autogen.sh
+	./configure && make check
+	sudo make install
+	sudo ldconfig
+	cd ..
+
+	echo "[PiMP] dep 4..."
+	sudo apt-get -y install libprotobuf-dev libgmp-dev
+
+	echo "[PiMP] Installing miner..."
+	
+	#this is broken. just use the one we installed in the tarball.
+	#git clone -b version/zcash https://github.com/eXtremal-ik7/xpmclient.git
+	#cd xpmclient
+	#echo "[PiMP] building miner..."
+	#cmake ../xpmclient -DOPENCL_LIBRARY=/opt/AMDAPP/lib/x86_64/libOpenCL.so
+	#make -j5
+	#echo "[PiMP] Done building zcash miner!"
 
 	# fix unknown bug
 	mv /etc/pkcs11/modules/gnome-keyring-module /etc/pkcs11/modules/gnome-keyring.module
@@ -39,10 +82,14 @@ function f.pimp180to181() {
 	# done
 	echo "Done updating PiMP 1.8.0 to 1.8.1! Thank you miners for supporting getPiMP!"
 	echo "Zcash GPU miner does not have API support and will not be controllable using our tools yet."
-	echo "To mine Zcash: command zcashedit and put your settings, then:"
-	echo "zcashmine to mine! PiMPing is easy!"
+	echo "To mine Zcash: first do: zcashedit and put your settings, then: zcashmine to mine! PiMPing is easy!"
 	mine start
 }
+
+#################################################
+# Archived / No longersupported
+#################################################
+
 
 # 1.4.x stuff ... safe to remove?
 function f.pimpupdateskel() {
@@ -883,4 +930,136 @@ function doinstall.manualstart() {
 		else
 			f.return
 	fi 
+}
+
+#!/bin/bash
+# used to be pimpupdate.updates.blablabla+
+#This file is an INCLUDE to pimpupdate. not to be run on its own under normal circumstances.
+#Neoscrypt addition and sg5 upgrader.
+function doinstall.neoscrypt.upgsg5() {
+	echo "Preparing to upgrade sgminer5-develop"
+	echo "Stopping mining...."
+	f.minestop
+ 	case $PIMP_VERSION2 in 
+ 	1.5.6-amd | 1.5.61-amd | 1.5.62-amd )
+		PIMPARCH=i386
+		SG5DEVFOLDER=/opt/sgminer5
+	;;
+	1.6.0-amd )
+		PIMPARCH=i386
+		SG5DEVFOLDER=/opt/sgminer5-develop
+	;;
+	1.4.8-amd | 1.4.9-amd | 1.7.0-amd )
+		PIMPARCH=amd64
+		SG5DEVFOLDER=/opt/sgminer5-develop
+	;;
+	esac
+	echo "Downloading SGMiner5-develop for pimp $PIMP_VERSION/$PIMPARCH"
+	download /tmp/sgminer5-develop.tbz2 $UPDATESERVER/pimpupdate/1.6-1.7-neoscrypt/sgminer5-develop.$PIMPARCH.tbz2
+	echo "Download finished, removing old sgminer5-develop and extracting replacement...."
+	rm -rf $SG5DEVFOLDER
+    tar xjpf /tmp/sgminer5-develop.tbz2 -C /opt/
+    echo "Done extracting, restarting mining... Remember to use poolmanager profiles ending in -develop!"
+    f.minestart
+    echo "Installation finished, Enjoy!"
+}
+
+function doinstall.neoscrypt() {
+	$THELINE
+	echo "Neoscrypt profile and sgminer5 updater for pimp 1.5.6/1.6/1.7"
+	echo "Note: IF you overwrite cgminer.nhmulti.conf/cgminer.whmulti.conf during this installation, you will need to run changebtcaddress again to update the config files with your btc address."
+	echo "Continuing in 5 seconds, CTRL+C to abort."
+	sleep 5
+	$THELINE
+	echo "PiMP $PIMP_VERSION detected, Continuing installation."
+	$THELINE
+	echo "Checking for existing files."
+    checkinstall.conffile /opt/ifmi/cgminer.neoscrypt.conf cgminer.neoscrypt.conf $UPDATESERVER/pimpupdate/1.6-1.7-neoscrypt/cgminer.neoscrypt.conf.tbz2
+    checkinstall.conffile /opt/ifmi/cgminer.nhmulti.conf cgminer.nhmulti.conf $UPDATESERVER/pimpupdate/1.6-1.7-neoscrypt/cgminer.nhmulti.conf.tbz2
+    checkinstall.conffile /opt/ifmi/cgminer.whmulti.conf cgminer.whmulti.conf $UPDATESERVER/pimpupdate/1.6-1.7-neoscrypt/cgminer.whmulti.conf.tbz2
+    echo "Conf file checks completed..."
+    $THELINE
+	echo "Downloading Neoscrypt profiles for poolmanager..."	
+	case $PIMP_VERSION in 
+	1.5.6-amd-13.12 | 1.5.6-amd-14.4 | 1.5.6-amd-14.6 )
+		NEOPMVER="1.5.6"
+	;;
+	1.4.8-amd-13.12 | 1.4.9-amd-13.12 | 1.6.0-amd-13.12 | 1.7.0-amd-13.12 )
+	   	NEOPMVER="1.6.0-13.12"
+    ;; 
+	1.4.8-amd-14.4 | 1.4.8-amd-14.6 | 1.4.9-amd-14.4 | 1.4.9-amd-14.6 | 1.7.0-amd-14.6 | 1.7.0-amd-14.9 | 1.6.0-amd-14.6 | 1.6.0-amd-14.9 | 1.5.61-amd-14.6 | 1.5.61-amd-14.9 | 1.5.62-amd-14.6 | 1.5.62-amd-14.9 )
+		NEOPMVER="1.6.0-14.6"
+	;;
+	esac
+	download /tmp/poolmanager.conf.neoscrypt.tbz2 $UPDATESERVER/pimpupdate/1.6-1.7-neoscrypt/poolmanager.conf.neoscrypt.$NEOPMVER.tbz2
+	echo "Backing up old poolmanager.conf to $BACKUPDIR"
+	cp /opt/ifmi/poolmanager.conf $BACKUPDIR/poolmanager.conf.$DATESTAMP
+	echo "Download finished, extracting...."
+	tar xvjpf /tmp/poolmanager.conf.neoscrypt.tbz2 -C /opt/ifmi/
+	chown -R www-data.root /opt/ifmi/poolmanager.conf
+	echo "New poolmanager profile installed, continuing installation.."
+	doinstall.neoscrypt.upgsg5
+}
+
+##ZR5 Ziftrcoin
+function doinstall.zr5.upgsg5() {
+	echo "Preparing to install sgminer-zr5 (Ziftrcoin)"
+	echo "Stopping mining...."
+	f.minestop
+ 	case $PIMP_VERSION2 in 
+ 	1.5.6-amd | 1.5.61-amd | 1.5.62-amd )
+		PIMPARCH=i386
+		SGZR5FOLDER=/opt/sgminer-zr5
+	;;
+	1.6.0-amd )
+		PIMPARCH=i386
+		SGZR5FOLDER=/opt/sgminer-zr5
+	;;
+	1.4.8-amd | 1.4.9-amd | 1.7.0-amd )
+		PIMPARCH=amd64
+		SG5ZR5FOLDER=/opt/sgminer-zr5
+	;;
+	esac
+	echo "Downloading SGMiner5-ziftr for pimp $PIMP_VERSION/$PIMPARCH"
+	download /tmp/sgminer-zr5.tbz2 $UPDATESERVER/pimpupdate/1.6-1.7-zr5/sgminer-zr5.$PIMPARCH.tbz2
+	echo "Download finished, removing old sgminer5-develop and extracting replacement...."
+	rm -rf $SGZR5FOLDER
+    tar xjpf /tmp/sgminer-zr5.tbz2 -C /opt/
+    echo "Done extracting, restarting mining... Remember to use poolmanager profiles ending in -develop!"
+    f.minestart
+    echo "Installation finished, Enjoy!"
+}
+
+function doinstall.zr5() {
+	$THELINE
+	echo "ZR5 (Ziftrcoin) profile and sgminer5 updater for pimp 1.6/1.7"
+	echo "Continuing in 5 seconds, CTRL+C to abort."
+	sleep 5
+	$THELINE
+	echo "PiMP $PIMP_VERSION detected, Continuing installation."
+	$THELINE
+	echo "Checking for existing files."
+    checkinstall.conffile /opt/ifmi/cgminer.zr5.conf cgminer.zr5.conf $UPDATESERVER/pimpupdate/1.6-1.7-zr5/cgminer.zr5.conf.tbz2
+    echo "Conf file checks completed..."
+    $THELINE
+	echo "Downloading ZR5 profiles for poolmanager..."	
+	case $PIMP_VERSION in 
+	1.5.6-amd-13.12 | 1.5.6-amd-14.4 | 1.5.6-amd-14.6 )
+		ZR5PMVER="1.5.6"
+	;;
+	1.4.8-amd-13.12 | 1.4.9-amd-13.12 | 1.6.0-amd-13.12 | 1.7.0-amd-13.12 )
+	   	ZR5PMVER="1.6.0-13.12"
+    ;; 
+	1.4.8-amd-14.4 | 1.4.8-amd-14.6 | 1.4.9-amd-14.4 | 1.4.9-amd-14.6 | 1.7.0-amd-14.6 | 1.7.0-amd-14.9 | 1.7.0-amd-14.12| 1.6.0-amd-14.6 | 1.6.0-amd-14.9 | 1.6.0-amd-14.12 | 1.5.61-amd-14.6 | 1.5.61-amd-14.9 | 1.5.62-amd-14.6 | 1.5.62-amd-14.9 )
+		ZR5PMVER="1.6.0-14.6"
+	;;
+	esac
+	download /tmp/poolmanager.conf.zr5.tbz2 $UPDATESERVER/pimpupdate/1.6-1.7-zr5/poolmanager.conf.zr5.$ZR5PMVER.tbz2
+	echo "Backing up old poolmanager.conf to $BACKUPDIR"
+	cp /opt/ifmi/poolmanager.conf $BACKUPDIR/poolmanager.conf.$DATESTAMP
+	echo "Download finished, extracting...."
+	tar xvjpf /tmp/poolmanager.conf.zr5.tbz2 -C /opt/ifmi/
+	chown -R www-data.root /opt/ifmi/poolmanager.conf
+	echo "New poolmanager profile installed, continuing installation.."
+	doinstall.zr5.upgsg5
 }
