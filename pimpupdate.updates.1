@@ -25,7 +25,7 @@ function f.pimp180to181() {
 	cd /root/.updates
 	dpkg -i *.deb
 	rm *.deb
-	apt -y install lcdproc protobuf-compiler
+	apt -y install lcdproc protobuf-compiler qt5-default
 	service LCDd start
 	update-rc.d LCDd defaults
 	sleep 5
