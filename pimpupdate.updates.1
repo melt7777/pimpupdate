@@ -9,8 +9,8 @@ function f.pimp180to181() {
 	back
 
 	# stop mining
-	echo "Stopping mining...."
-
+	$THELINE
+	
 	mine stop
 	# download and extract 
 	echo "Downloading pimp classic 1.8 to 1.8.1 patches..."
@@ -18,24 +18,31 @@ function f.pimp180to181() {
 	download /tmp/$UPDATEFILE https://files.getpimp.org/pimpupdate/$UPDATEFILE
 	cd /
 
+	$THELINE
 	echo "[PiMP] Extracting pimp classic 1.8 to 1.8.1 patches..."
 	tar xvfj /tmp/$UPDATEFILE
-
+	
+	$THELINE
 	echo "[PiMP] Installing new OS packages ..."
 	cd /root/.updates
-	dpkg -i *.deb
-	rm *.deb
-	apt -y install lcdproc protobuf-compiler qt5-default
+	#apt -y purge libboost*
+	#dpkg -i *.deb
+	#rm *.deb
+	mv /etc/LCDd.conf /etc/LCDd.temp #so apt doesnt prompt
+	apt-get -y install libprotobuf-dev libgmp-dev lcdproc protobuf-compiler qt5-default  qtbase5-dev qtchooser #libprotobuf7 libprotoc7 
+	mv /etc/LCDd.temp /etc/LCDd.conf
 	service LCDd start
 	update-rc.d LCDd defaults
 	sleep 5
-	lcdproc
-
+	#lcdproc
+	
+	$THELINE
 	echo "[PiMP] Installing Zcash updates... This may take several minutes to compile all the dependencies...."
 
 	mkdir -p /opt/pimp/lib
 	cd /opt/pimp/lib
 	
+	$THELINE
 	echo "[PiMP] dep 1..."
 	git clone git://github.com/jedisct1/libsodium.git
 	cd libsodium
@@ -45,6 +52,7 @@ function f.pimp180to181() {
 	sudo ldconfig
 	cd ..
 
+	$THELINE
 	echo "[PiMP] dep 2..."
 	git clone git://github.com/zeromq/libzmq.git
 	cd libzmq
@@ -54,6 +62,7 @@ function f.pimp180to181() {
 	sudo ldconfig
 	cd ..
 
+	$THELINE
 	echo "[PiMP] dep 3..."
 	git clone git://github.com/zeromq/czmq.git
 	cd czmq
@@ -63,11 +72,10 @@ function f.pimp180to181() {
 	sudo ldconfig
 	cd ..
 
-	echo "[PiMP] dep 4..."
-	sudo apt-get -y install libprotobuf-dev libgmp-dev
+	rm -r /opt/pimp/lib # clear it, thats 200+MB
 
-	echo "[PiMP] Installing miner..."
-	
+	$THELINE
+	echo "[PiMP] Installing miners..."
 	#this is broken. just use the one we installed in the tarball.
 	#git clone -b version/zcash https://github.com/eXtremal-ik7/xpmclient.git
 	#cd xpmclient
@@ -78,11 +86,16 @@ function f.pimp180to181() {
 
 	# fix unknown bug
 	mv /etc/pkcs11/modules/gnome-keyring-module /etc/pkcs11/modules/gnome-keyring.module
-
+	mv /opt/pimp/getips /opt/pimp/getip
+	ln -s /etc/init.d/mfsvc /etc/init.d/minerfarm
 	# done
+	$THELINE
+	$THELINE
 	echo "Done updating PiMP 1.8.0 to 1.8.1! Thank you miners for supporting getPiMP!"
 	echo "Zcash GPU miner does not have API support and will not be controllable using our tools yet."
 	echo "To mine Zcash: first do: zcashedit and put your settings, then: zcashmine to mine! PiMPing is easy!"
+	$THELINE
+	$THELINE
 	mine start
 }
 
