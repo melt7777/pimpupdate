@@ -85,8 +85,15 @@ function f.pimp180to181() {
 	#echo "[PiMP] Done building zcash miner!"
 
 	# fix unknown bug
+	cd /opt
 	mv /etc/pkcs11/modules/gnome-keyring-module /etc/pkcs11/modules/gnome-keyring.module
 	mv /opt/pimp/getips /opt/pimp/getip
+
+	# updating minerfarm
+	$THELINE
+	echo "Updating minerfarm...."
+	cd /opt
+	/opt/minerfarm/mfInstall-Linux.pl -q
 	ln -s /etc/init.d/mfsvc /etc/init.d/minerfarm
 	# done
 	$THELINE
