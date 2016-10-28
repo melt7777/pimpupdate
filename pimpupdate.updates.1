@@ -29,7 +29,7 @@ function f.pimp180to181() {
 	#dpkg -i *.deb
 	#rm *.deb
 	mv /etc/LCDd.conf /etc/LCDd.temp #so apt doesnt prompt
-	apt-get -y install libprotobuf-dev libgmp-dev lcdproc protobuf-compiler qt5-default  qtbase5-dev qtchooser #libprotobuf7 libprotoc7 
+	apt-get -y install libprotobuf-dev libgmp-dev lcdproc protobuf-compiler qt5-default  qtbase5-dev qtchooser sqlite3
 	mv /etc/LCDd.temp /etc/LCDd.conf
 	service LCDd start
 	update-rc.d LCDd defaults
